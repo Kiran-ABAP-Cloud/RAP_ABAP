@@ -2,6 +2,7 @@
 @EndUserText.label: 'Projection layer for root travel entity'
 @Metadata.ignorePropagatedAnnotations: false
 @VDM.viewType: #CONSUMPTION
+@Metadata.allowExtensions: true
 define root view entity ZRAP_KK_TRAVEL_PROCESSOR as projection on ZRAP_KK_TRAVEL
 {
     key TravelId,
@@ -18,6 +19,10 @@ define root view entity ZRAP_KK_TRAVEL_PROCESSOR as projection on ZRAP_KK_TRAVEL
     CreatedAt,
     LastChangedBy,
     LastChangedAt,
+    AgencyName,
+    CustomerName,
+    StatusText,       
+    Minion,
     /* Associations */
     _Agency,
     _Booking : redirected to composition child ZRAP_KK_BOOKING_PROCESSOR,

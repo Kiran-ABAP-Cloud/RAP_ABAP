@@ -1,0 +1,15 @@
+@EndUserText.label: 'Service Definition for Travel Processor Scenario'
+define service ZRAP_KK_TRAVEL_PROCESSOR_SD {
+  expose ZRAP_KK_TRAVEL_PROCESSOR    as Travel;
+  expose ZRAP_KK_BOOKING_PROCESSOR   as Booking;
+  expose ZRAP_KK_BOOKSUPPL_PROCESSOR as BookSupplement;
+  expose /DMO/I_Agency               as Agency;
+  expose /DMO/I_Customer             as Customer;
+  expose I_Currency                  as Currency;
+  expose /DMO/I_Travel_Status_VH     as TravelStatus;
+  expose /DMO/I_Carrier              as Carrier;
+  expose /DMO/I_Connection           as Connections;
+  expose /DMO/I_Booking_Status_VH    as BookingStatus;
+  expose /DMO/I_Supplement           as Supplement;
+  expose /DMO/I_SupplementText       as SupplementText;
+}
