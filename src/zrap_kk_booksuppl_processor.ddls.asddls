@@ -2,6 +2,7 @@
 @EndUserText.label: 'Book Supplement Processor Projection Entity'
 @Metadata.ignorePropagatedAnnotations: false
 @VDM.viewType: #CONSUMPTION
+@Metadata.allowExtensions: true
 define view entity ZRAP_KK_BOOKSUPPL_PROCESSOR as projection on ZRAP_KK_BOOKSUPPL
 {
     key TravelId,

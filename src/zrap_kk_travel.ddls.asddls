@@ -15,9 +15,19 @@ define root view entity ZRAP_KK_TRAVEL
       //Objectmodel is to display the description for agency for user to understand
       //and this need to be projected in projection layer as UI is built on top of ZRAP_KK_TRAVEL_PROCESSOR projection
       @ObjectModel.text.element: [ 'AgencyName' ]
+      @Consumption.valueHelpDefinition: [{
+                  entity: { name: '/DMO/I_Agency',
+                            element: 'AgencyID'
+                          }
+                                        }]
       agency_id                                                        as AgencyId,
       _Agency.Name                                                     as AgencyName,
       @ObjectModel.text.element: [ 'CustomerName' ]
+      @Consumption.valueHelpDefinition: [{
+                                  entity: { name: '/DMO/I_Customer',
+                                            element: 'CustomerID' 
+                                           }
+                                         }] 
       customer_id                                                      as CustomerId,
       concat( concat(_Customer.FirstName, ' '), _Customer.LastName)    as CustomerName,
       begin_date                                                       as BeginDate,
@@ -26,12 +36,22 @@ define root view entity ZRAP_KK_TRAVEL
       booking_fee                                                      as BookingFee,
       @Semantics.amount.currencyCode: 'CurrencyCode'
       total_price                                                      as TotalPrice,
+      @Consumption.valueHelpDefinition: [{
+                                  entity: { name: 'I_Currency',
+                                            element: 'Currency' 
+                                           }
+                                         }] 
       currency_code                                                    as CurrencyCode,
       description                                                      as Description,
       @ObjectModel.text.element: [ 'StatusText' ]
+      @Consumption.valueHelpDefinition: [{
+                                  entity: { name: '/DMO/I_Overall_Status_VH',
+                                            element: 'OverallStatus' 
+                                           }
+                                         }] 
       overall_status                                                   as OverallStatus,
-//Below is to color code the status and this filed need to be exposed in projection ZRAP_KK_TRAVEL_PROCESSOR
-//and add the ctiticality option in @UI.Lineitem in MDE against Status field      
+      //Below is to color code the status and this filed need to be exposed in projection ZRAP_KK_TRAVEL_PROCESSOR
+      //and add the ctiticality option in @UI.Lineitem in MDE against Status field
       case overall_status
       when  'O' then 2
       when 'A' then 3
