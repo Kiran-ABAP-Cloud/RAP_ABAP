@@ -16,15 +16,36 @@ lock master
 authorization master ( instance )
 //eTag is a concurrency control which controls the behaviour of multiple users simultaneously editing data
 etag master LastChangedAt
+//We want as a developer to take control of Travel ID
+early numbering
 {
-//Behaviour what we want RAP to generate for us
+  //Behaviour what we want RAP to generate for us
   create;
   update;
   delete;
   //static feature control which says that a user cannot change primary key in update mode
-  //field ( readonly ) TravelId;
+  field ( readonly ) TravelId;
   //That create of booking depends on Travel, like you cannot create a SO line item w/o creating header
   association _Booking { create; }
+  //mapping is required as CDS projection entity and actual DB table fields are different and they
+  //won't be created the entry in DB table without this by RAP engine
+  mapping for /dmo/travel_m
+    {
+      TravelId      = travel_id;
+      BeginDate     = begin_date;
+      EndDate       = end_date;
+      AgencyId      = agency_id;
+      CustomerId    = customer_id;
+      CurrencyCode  = currency_code;
+      TotalPrice    = total_price;
+      BookingFee    = booking_fee;
+      LastChangedAt = last_changed_at;
+      LastChangedBy = last_changed_by;
+      CreatedBy     = created_by;
+      CreatedAt     = created_at;
+      Description   = description;
+      OverallStatus = overall_status;
+    }
 }
 
 //Behaviour for Booking entity
@@ -36,7 +57,7 @@ lock dependent by _Travel
 authorization dependent by _Travel
 etag master LastChangedAt
 {
-//User is allowed to only change and delete booking independently
+  //User is allowed to only change and delete booking independently
   update;
   delete;
   //While user is editing the booking data, they cannot change the travel header data
@@ -44,6 +65,20 @@ etag master LastChangedAt
   association _Travel;
   //Supplement creation is possible with booking
   association _BookingSuppl { create; }
+  mapping for /dmo/booking_m
+    {
+      TravelId      = travel_id;
+      BookingId     = booking_id;
+      BookingDate   = booking_date;
+      BookingStatus = booking_status;
+      CarrierId     = carrier_id;
+      ConnectionId  = connection_id;
+      FlightDate    = flight_date;
+      FlightPrice   = flight_price;
+      CurrencyCode  = currency_code;
+      CustomerId    = customer_id;
+      LastChangedAt = last_changed_at;
+    }
 }
 //Behaviour for BookSuppl entity
 define behavior for ZRAP_KK_BOOKSUPPL alias BookSuppl
@@ -57,4 +92,15 @@ etag master LastChangedAt
   field ( readonly ) TravelId, BookingId;
   association _Travel;
   association _Booking;
+
+  mapping for /dmo/booksuppl_m
+    {
+      TravelId            = travel_id;
+      BookingId           = booking_id;
+      BookingSupplementId = booking_supplement_id;
+      SupplementId        = supplement_id;
+      Price               = price;
+      CurrencyCode        = currency_code;
+      LastChangedAt       = last_changed_at;
+    }
 }
