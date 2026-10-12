@@ -3,6 +3,12 @@ CLASS lhc_Travel DEFINITION INHERITING FROM cl_abap_behavior_handler.
 
     METHODS get_instance_authorizations FOR INSTANCE AUTHORIZATION
       keys REQUEST requested_authorizations FOR Travel RESULT result.
+    METHODS get_instance_features FOR INSTANCE FEATURES
+      keys REQUEST requested_features FOR travel RESULT result.
+    METHODS copytravel FOR MODIFY
+       keys FOR ACTION travel~copytravel.
+    METHODS earlynumbering_cba_booking FOR NUMBERING
+       entities FOR CREATE travel\_booking.
     METHODS earlynumbering_create FOR NUMBERING
        entities FOR CREATE travel.
 
@@ -84,6 +90,132 @@ CLASS lhc_Travel IMPLEMENTATION.
 
       APPEND VALUE #( %cid = entity-%cid %key = entity-%key ) TO mapped-travel.
     ENDLOOP.
+
+  ENDMETHOD.
+
+  METHOD earlynumbering_cba_Booking.
+    DATA: max_booking_id TYPE /dmo/booking_id.
+
+    "Step 1: Get all the travel request and their bookings
+    READ ENTITIES OF zrap_kk_travel IN LOCAL MODE
+                ENTITY travel BY \_Booking
+                FROM CORRESPONDING #( entities )
+                LINK DATA(lt_bookings).
+
+    "STep 2: Cases to handle for assigning unique Booking ID
+    "1001, 1002, 1005
+    LOOP AT entities ASSIGNING FIELD-SYMBOL(<travel_group>) GROUP BY <travel_group>-TravelId.
+
+      "Step 3: Loop at the specific booking of every unique Travel Id
+      "Pass 1 - 10,20
+      "Pass 2 - 10
+      "Pass 3 - 40,50
+      LOOP AT lt_bookings INTO DATA(ls_bookings) USING KEY entity
+                          WHERE source-TravelId = <travel_group>-TravelId.
+        "Determine the already created Booking Id which is maximum
+        IF max_booking_id < ls_bookings-target-BookingId.
+          max_booking_id = ls_bookings-target-BookingId.
+        ENDIF.
+      ENDLOOP.
+    ENDLOOP.
+
+    "STep 4: Loop over all the entities of travel with same Travel is and increment the max booking Id
+    LOOP AT entities ASSIGNING FIELD-SYMBOL(<travel>) GROUP BY <travel_group>-TravelId.
+
+      "Step 5: Increment the Booking Id + 10 and assign the new id
+      LOOP AT <travel>-%target ASSIGNING FIELD-SYMBOL(<travel_wo_number>).
+        APPEND CORRESPONDING #( <travel_wo_number> ) TO mapped-booking
+                                           ASSIGNING FIELD-SYMBOL(<mapped_booking>).
+
+        "Determine the already created Booking Id which is maximum
+        "Assigning the +10 as new Booking Id
+        IF <mapped_booking>-BookingId IS INITIAL.
+          max_booking_id += 10.
+          <mapped_booking>-BookingId = max_booking_id.
+        ENDIF.
+      ENDLOOP.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD get_instance_features.
+    "Use Case: Check the status of the current travel request
+    " if cancelled, disable the booking creation
+
+    "Step 1: EML to read the travel status
+    READ ENTITIES OF zrap_kk_travel IN LOCAL MODE
+         ENTITY Travel
+         FIELDS ( TravelId OverallStatus )
+         WITH CORRESPONDING #( keys )
+         RESULT DATA(lt_travel)
+         FAILED DATA(lt_failed).
+
+    "STep 2: Return the result with booking creation is possible or not
+    READ TABLE lt_travel INTO DATA(ls_travel) INDEX 1.
+    IF ( ls_travel-OverallStatus = 'X' ).
+      DATA(lv_allow) = if_abap_behv=>fc-o-disabled.
+    ELSE.
+      lv_allow = if_abap_behv=>fc-o-enabled.
+    ENDIF.
+
+
+    result = VALUE #( FOR travel IN lt_travel ( %tky = travel-%tky
+                                                %assoc-_Booking = lv_allow ) ).
+
+
+  ENDMETHOD.
+
+  METHOD copyTravel.
+    "Shallow copy = Header
+    "Deep Copy = Header, Items, Sub Items
+    "Step 1: Declare data to store new records
+    DATA: travels       TYPE TABLE FOR CREATE zrap_kk_travel\\travel,
+          bookings_cba  TYPE TABLE FOR CREATE zrap_kk_travel\\travel\_Booking,
+          booksuppl_cba TYPE TABLE FOR CREATE zrap_kk_travel\\Booking\_BookingSuppl.
+
+    "Step 1: Remove the travel instance with blank %cid
+    READ TABLE keys WITH KEY %cid = '' INTO DATA(key_with_initial_cid).
+    ASSERT key_with_initial_cid IS INITIAL.
+
+    "Step 2: Read all the existing data of travel, booking, supplement
+    READ ENTITIES OF zrap_kk_travel IN LOCAL MODE
+    ENTITY Travel
+    ALL FIELDS WITH CORRESPONDING #( keys )
+    RESULT DATA(travel_read_result)
+    FAILED failed.
+
+    READ ENTITIES OF zrap_kk_travel IN LOCAL MODE
+    ENTITY Travel BY \_Booking
+    ALL FIELDS WITH CORRESPONDING #( travel_read_result )
+    RESULT DATA(book_read_result)
+    FAILED failed.
+
+    READ ENTITIES OF zrap_kk_travel IN LOCAL MODE
+    ENTITY booking BY \_BookingSuppl
+    ALL FIELDS WITH CORRESPONDING #( book_read_result )
+    RESULT DATA(booksuppl_read_result)
+    FAILED failed.
+
+    "Step 3: Prepare the data to be inserted in DB
+    LOOP AT travel_read_result ASSIGNING FIELD-SYMBOL(<travel>).
+      "Travel Data prepare
+      APPEND VALUE #( %cid = keys[ %tky = <travel>-%tky ]-%cid
+                      %data = CORRESPONDING #( <travel> EXCEPT travelid )
+                     ) TO travels ASSIGNING FIELD-SYMBOL(<new_travel>).
+      <new_travel>-BeginDate = cl_abap_context_info=>get_system_date( ).
+      <new_travel>-EndDate = cl_abap_context_info=>get_system_date( ) + 30.
+      <new_travel>-OverallStatus = 'N'.
+    ENDLOOP.
+
+    "STep 4: Insert data in DB using EML
+    MODIFY ENTITIES OF zrap_kk_travel IN LOCAL MODE
+        ENTITY travel
+        CREATE FIELDS ( agencyid customerid begindate enddate bookingfee totalprice currencycode overallstatus )
+        WITH travels
+        MAPPED DATA(mapped_data)
+        FAILED failed
+        REPORTED reported.
+
+        mapped-travel = mapped_data-travel.
 
   ENDMETHOD.
 

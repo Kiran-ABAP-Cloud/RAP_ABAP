@@ -1,11 +1,12 @@
 //mnaged will tell RAP that developer want RAP to create most of code automatically
-managed
+managed;
 //In case developer want to plug extra coding, this is the class where we can do it
-implementation in class zbp_rap_kk_travel unique;
+
 //Tell the RAP engine to syntax check our code strictly
 strict ( 2 );
 //Root entity behaviour
 define behavior for ZRAP_KK_TRAVEL alias Travel
+implementation in class zbp_rap_kk_travel unique
 //Tell the RAP that it should WRITE, UPDATE,MODIFY,DELETE data from which table
 persistent table /dmo/travel_m
 //How the data will be locked ENQUEUE, DEQUEUE - if the travel data is locked by user, other
@@ -25,8 +26,12 @@ early numbering
   delete;
   //static feature control which says that a user cannot change primary key in update mode
   field ( readonly ) TravelId;
+  field ( mandatory ) begindate, enddate, agencyid, customerid;
+  //since we want to create new BO instance (Facotry), our reference if Mohan's(instance)
+  factory action copyTravel[1];
   //That create of booking depends on Travel, like you cannot create a SO line item w/o creating header
-  association _Booking { create; }
+  //Dynamic feature control - features:instance
+  association _Booking { create ( features : instance ); }
   //mapping is required as CDS projection entity and actual DB table fields are different and they
   //won't be created the entry in DB table without this by RAP engine
   mapping for /dmo/travel_m
@@ -50,18 +55,22 @@ early numbering
 
 //Behaviour for Booking entity
 define behavior for ZRAP_KK_BOOKING alias Booking
+implementation in class zbp_rap_kk_booking unique
 persistent table /dmo/booking_m
 //if parent data is locked child is also locked automatically
 lock dependent by _Travel
 //lets check the authorization and role @ parent if that pass, we allo booking also to be updated
 authorization dependent by _Travel
 etag master LastChangedAt
+//Support for automatic creation of early numbering for Bookings
+early numbering
 {
   //User is allowed to only change and delete booking independently
   update;
   delete;
   //While user is editing the booking data, they cannot change the travel header data
-  field ( readonly ) TravelId;
+  field ( readonly ) TravelId, BookingId;
+  field ( mandatory ) CarrierId, ConnectionId, BookingDate, customerid;
   association _Travel;
   //Supplement creation is possible with booking
   association _BookingSuppl { create; }
@@ -86,10 +95,12 @@ persistent table /dmo/booksuppl_m
 lock dependent by _Travel
 authorization dependent by _Travel
 etag master LastChangedAt
+early numbering
 {
   update;
   delete;
-  field ( readonly ) TravelId, BookingId;
+  field ( readonly ) TravelId, BookingId, BookingSupplementId;
+  field ( mandatory ) SupplementId, CurrencyCode, price;
   association _Travel;
   association _Booking;
 
