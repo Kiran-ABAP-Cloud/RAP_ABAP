@@ -204,6 +204,37 @@ CLASS lhc_Travel IMPLEMENTATION.
       <new_travel>-BeginDate = cl_abap_context_info=>get_system_date( ).
       <new_travel>-EndDate = cl_abap_context_info=>get_system_date( ) + 30.
       <new_travel>-OverallStatus = 'N'.
+
+      "Booking Data preparation
+      "We have to pass %cid_ref to tell system, that the bookings belongs to which travel request
+      " A record was inserted in itab for booking
+      APPEND VALUE #( %cid_ref = keys[ %tky = <travel>-%tky ]-%cid
+                     ) TO bookings_cba ASSIGNING FIELD-SYMBOL(<booking_cba>).
+
+      "Prepare all the bookings from existing request which needs to be copied
+      LOOP AT book_read_result ASSIGNING FIELD-SYMBOL(<booking>) WHERE travelid = <travel>-travelid.
+        "Lets pass a unique booking cid - concatenate the CID of travel with BookingId of existing travel
+        APPEND VALUE #( %cid = keys[ %tky = <travel>-%tky ]-%cid && <booking>-BookingId
+                        %data = CORRESPONDING #( book_read_result[ %tky = <booking>-%tky ] EXCEPT travelid ) )
+                      TO <booking_cba>-%target ASSIGNING FIELD-SYMBOL(<new_booking>).
+        <new_booking>-BookingStatus = 'N'.
+
+        "STart of supplement
+        "We have to pass %cid_ref to tell system, that the bookings belongs to which travel request
+        " A record was inserted in itab for booking
+        APPEND VALUE #( %cid_ref = keys[ %tky = <travel>-%tky ]-%cid && <booking>-BookingId
+                       ) TO booksuppl_cba ASSIGNING FIELD-SYMBOL(<booksuppl_cba>).
+
+        "Prepare all the bookings from existing request which needs to be copied
+        LOOP AT booksuppl_read_result ASSIGNING FIELD-SYMBOL(<booksuppl>) WHERE travelid = <travel>-travelid
+                                                                           AND  BookingId = <booking>-BookingId.
+          "Lets pass a unique booking cid - concatenate the CID of travel with BookingId of existing travel
+          APPEND VALUE #( %cid = keys[ %tky = <travel>-%tky ]-%cid && <booking>-BookingId && <booksuppl>-BookingSupplementId
+                          %data = CORRESPONDING #( booksuppl_read_result[ %tky = <booksuppl>-%tky ] EXCEPT travelid bookingid ) )
+                        TO <booksuppl_cba>-%target.
+          "End of Supplement
+        ENDLOOP.
+      ENDLOOP.
     ENDLOOP.
 
     "STep 4: Insert data in DB using EML
@@ -211,11 +242,16 @@ CLASS lhc_Travel IMPLEMENTATION.
         ENTITY travel
         CREATE FIELDS ( agencyid customerid begindate enddate bookingfee totalprice currencycode overallstatus )
         WITH travels
+        CREATE BY \_Booking FIELDS ( bookingid bookingdate customerid CarrierId connectionid flightdate flightprice currencycode bookingstatus )
+        WITH bookings_cba
+        ENTITY Booking
+        CREATE BY \_BookingSuppl FIELDS ( BookingSupplementId SupplementId Price CurrencyCode )
+        WITH booksuppl_cba
         MAPPED DATA(mapped_data)
         FAILED failed
         REPORTED reported.
 
-        mapped-travel = mapped_data-travel.
+    mapped = mapped_data.
 
   ENDMETHOD.
 

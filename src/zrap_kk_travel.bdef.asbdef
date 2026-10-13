@@ -28,6 +28,8 @@ early numbering
   field ( readonly ) TravelId;
   field ( mandatory ) begindate, enddate, agencyid, customerid;
   //since we want to create new BO instance (Facotry), our reference if Mohan's(instance)
+  //create the code logic in behaviour implementation, add this action in Travel processor Behaviour definition to expose,
+  //and finally add the button 'Copy Request' for TravelId in the Travel Processor MDE file
   factory action copyTravel[1];
   //That create of booking depends on Travel, like you cannot create a SO line item w/o creating header
   //Dynamic feature control - features:instance

@@ -69,9 +69,10 @@ annotate entity ZRAP_KK_TRAVEL_PROCESSOR with
   }  
   ]
   @UI.selectionField: [{ position: 10 }]
-  @UI.lineItem: [{ position: 10  }]
+  @UI.lineItem: [{ position: 10  },
+                 { type: #FOR_ACTION, dataAction: 'copyTravel', label: 'Copy Request' } ]
   //field in the identification default tab in collection
-  @UI.identification: [{ position: 10 }]
+  @UI.identification: [{ position: 10 }]  
   TravelId;
   @UI.selectionField: [{ position: 20 }]
   @UI.lineItem: [{ position: 20  }]
