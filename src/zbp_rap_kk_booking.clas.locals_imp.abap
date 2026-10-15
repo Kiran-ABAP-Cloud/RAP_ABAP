@@ -3,6 +3,8 @@ CLASS lhc_Booking DEFINITION INHERITING FROM cl_abap_behavior_handler.
 
     METHODS earlynumbering_cba_Bookingsupp FOR NUMBERING
        entities FOR CREATE Booking\_Bookingsuppl.
+    METHODS CalcTotalPriceBook FOR DETERMINE ON MODIFY
+      keys FOR Booking~CalcTotalPriceBook.
 
 ENDCLASS.
 
@@ -60,6 +62,14 @@ CLASS lhc_Booking IMPLEMENTATION.
         ENDLOOP.
       ENDLOOP.
     ENDLOOP.
+  ENDMETHOD.
+
+  METHOD CalcTotalPriceBook.
+   "How to call an action using the EML
+    MODIFY ENTITIES OF zrap_kk_travel IN LOCAL MODE
+     ENTITY Travel
+     EXECUTE recCalcTotalPrice
+     FROM CORRESPONDING #( keys ).
   ENDMETHOD.
 
 ENDCLASS.

@@ -31,6 +31,13 @@ early numbering
   //create the code logic in behaviour implementation, add this action in Travel processor Behaviour definition to expose,
   //and finally add the button 'Copy Request' for TravelId in the Travel Processor MDE file
   factory action copyTravel[1];
+  //Here we write internal action to calculate total cost of travel
+  //we can later consume this internal action multiple places
+  internal action recCalcTotalPrice;
+
+  //Determination that calls when user save, modify booking fee
+  determination CalcTotalPrice on modify { field BookingFee, CurrencyCode; create; }
+
   //That create of booking depends on Travel, like you cannot create a SO line item w/o creating header
   //Dynamic feature control - features:instance
   association _Booking { create ( features : instance ); }
@@ -76,6 +83,10 @@ early numbering
   association _Travel;
   //Supplement creation is possible with booking
   association _BookingSuppl { create; }
+
+  //Determination that calls when user save, modify flight price
+  determination CalcTotalPriceBook on modify { field FlightPrice, CurrencyCode; create; }
+
   mapping for /dmo/booking_m
     {
       TravelId      = travel_id;
@@ -93,6 +104,7 @@ early numbering
 }
 //Behaviour for BookSuppl entity
 define behavior for ZRAP_KK_BOOKSUPPL alias BookSuppl
+implementation in class zbp_rap_kk_booksuppl unique
 persistent table /dmo/booksuppl_m
 lock dependent by _Travel
 authorization dependent by _Travel
@@ -105,6 +117,9 @@ early numbering
   field ( mandatory ) SupplementId, CurrencyCode, price;
   association _Travel;
   association _Booking;
+
+//Determination that calls when user save, modify price
+  determination CalcTotalPriceSuppl on modify { field Price, CurrencyCode; create; }
 
   mapping for /dmo/booksuppl_m
     {

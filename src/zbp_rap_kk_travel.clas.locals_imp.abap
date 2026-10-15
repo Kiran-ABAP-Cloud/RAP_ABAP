@@ -7,6 +7,10 @@ CLASS lhc_Travel DEFINITION INHERITING FROM cl_abap_behavior_handler.
       keys REQUEST requested_features FOR travel RESULT result.
     METHODS copytravel FOR MODIFY
        keys FOR ACTION travel~copytravel.
+    METHODS reccalctotalprice FOR MODIFY
+       keys FOR ACTION travel~reccalctotalprice.
+    METHODS calctotalprice FOR DETERMINE ON MODIFY
+      keys FOR travel~calctotalprice.
     METHODS earlynumbering_cba_booking FOR NUMBERING
        entities FOR CREATE travel\_booking.
     METHODS earlynumbering_create FOR NUMBERING
@@ -253,6 +257,95 @@ CLASS lhc_Travel IMPLEMENTATION.
 
     mapped = mapped_data.
 
+  ENDMETHOD.
+
+  METHOD recCalcTotalPrice.
+    "Define a structure where we can store all the booking fees and currency code
+    TYPES: BEGIN OF ty_total_cost,
+             amount        TYPE /dmo/total_price,
+             currency_code TYPE /dmo/currency_code,
+           END OF ty_total_cost.
+
+    DATA: amounts_per_currencycode TYPE STANDARD TABLE OF ty_total_cost,
+          ls_header_curr           TYPE /dmo/currency_code.
+
+    "Read all the travel instances, bookings and supplement
+    READ ENTITIES OF zrap_kk_travel IN LOCAL MODE
+      ENTITY Travel
+      FIELDS ( bookingfee CurrencyCode ) WITH CORRESPONDING #( keys )
+      RESULT DATA(travel)
+      FAILED failed.
+
+    READ ENTITIES OF zrap_kk_travel IN LOCAL MODE
+    ENTITY Travel BY \_Booking
+    FIELDS ( FlightPrice CurrencyCode ) WITH CORRESPONDING #( travel )
+    RESULT DATA(booking)
+    FAILED failed.
+
+    READ ENTITIES OF zrap_kk_travel IN LOCAL MODE
+    ENTITY booking BY \_BookingSuppl
+    FIELDS ( Price CurrencyCode ) WITH CORRESPONDING #( booking )
+    RESULT DATA(booksuppl)
+    FAILED failed.
+
+    "Delete records where currencycode is empty, optionally throw error
+    DELETE travel WHERE CurrencyCode IS INITIAL.
+    DELETE booking WHERE CurrencyCode IS INITIAL.
+    DELETE booksuppl WHERE CurrencyCode IS INITIAL.
+
+    "Loop at header, item and items child total all the amounts in itab for common currency
+    LOOP AT travel ASSIGNING FIELD-SYMBOL(<fs_travel>).
+      amounts_per_currencycode = VALUE #( ( amount = <fs_travel>-bookingfee currency_code = <fs_travel>-currencycode )  ).
+      ls_header_curr =  <fs_travel>-currencycode.
+
+      LOOP AT booking INTO DATA(wa_booking) WHERE travelid = <fs_travel>-travelid.
+        "And add all numeric column values by comparing non numeric values
+        COLLECT VALUE ty_total_cost( amount = wa_booking-flightprice currency_code = wa_booking-currencycode )
+                      INTO amounts_per_currencycode.
+        LOOP AT booksuppl INTO DATA(wa_booksuppl) WHERE travelid = wa_booking-travelid
+                                                   AND  bookingid = wa_booking-bookingid.
+
+          COLLECT VALUE ty_total_cost( amount = wa_booksuppl-price currency_code = wa_booksuppl-currencycode )
+                        INTO amounts_per_currencycode.
+        ENDLOOP.
+      ENDLOOP.
+    ENDLOOP.
+
+    CLEAR <fs_travel>-totalprice.
+    "Compare the currency of Booking and Supplement with header currency
+    LOOP AT amounts_per_currencycode INTO DATA(ls_amount_per_currency).
+      "If it does not match, perform currency conversion
+      IF ls_amount_per_currency-currency_code = ls_header_curr.
+        <fs_travel>-totalprice += ls_amount_per_currency-amount.
+      ELSE.
+        /dmo/cl_flight_amdp=>convert_currency(
+          EXPORTING
+            iv_amount               = ls_amount_per_currency-amount
+            iv_currency_code_source = ls_amount_per_currency-currency_code
+            iv_currency_code_target = ls_header_curr
+            iv_exchange_rate_date   = cl_abap_context_info=>get_system_date( )
+          IMPORTING
+            ev_amount               = DATA(total_amt)
+        ).
+
+        <fs_travel>-totalprice += total_amt.
+      ENDIF.
+    ENDLOOP.
+
+    MODIFY ENTITIES OF zrap_kk_travel IN LOCAL MODE
+           ENTITY travel
+           UPDATE FIELDS ( totalprice )
+           WITH CORRESPONDING #( travel ).
+
+  ENDMETHOD.
+
+  METHOD CalcTotalPrice.
+
+    "How to call an action using the EML
+    MODIFY ENTITIES OF zrap_kk_travel IN LOCAL MODE
+     ENTITY Travel
+     EXECUTE recCalcTotalPrice
+     FROM CORRESPONDING #( keys ).
   ENDMETHOD.
 
 ENDCLASS.
