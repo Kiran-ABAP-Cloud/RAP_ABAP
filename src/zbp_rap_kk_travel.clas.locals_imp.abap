@@ -10,7 +10,9 @@ CLASS lhc_Travel DEFINITION INHERITING FROM cl_abap_behavior_handler.
     METHODS reccalctotalprice FOR MODIFY
        keys FOR ACTION travel~reccalctotalprice.
     METHODS calctotalprice FOR DETERMINE ON MODIFY
-      keys FOR travel~calctotalprice.
+       keys FOR travel~calctotalprice.
+    METHODS validateheaderdata FOR VALIDATE ON SAVE
+       keys FOR travel~validateheaderdata.
     METHODS earlynumbering_cba_booking FOR NUMBERING
        entities FOR CREATE travel\_booking.
     METHODS earlynumbering_create FOR NUMBERING
@@ -346,6 +348,79 @@ CLASS lhc_Travel IMPLEMENTATION.
      ENTITY Travel
      EXECUTE recCalcTotalPrice
      FROM CORRESPONDING #( keys ).
+  ENDMETHOD.
+
+  METHOD validateHeaderData.
+    "STep 1: Read the data of incoming request from EML
+    READ ENTITIES OF zrap_kk_travel IN LOCAL MODE
+        ENTITY Travel
+            FIELDS (  AgencyId CustomerId BeginDate EndDate )
+            WITH CORRESPONDING #( keys )
+            RESULT DATA(lt_travel).
+
+    "STep 2: Declare sorted table to hold customer ids and agency id
+    DATA: lt_customers TYPE SORTED TABLE OF /dmo/customer WITH UNIQUE KEY customer_id,
+          lt_agency    TYPE SORTED TABLE OF /dmo/agency WITH UNIQUE KEY agency_id.
+
+
+    "Step 3: Extract the unique customer and agency ids from travel data
+    lt_customers = CORRESPONDING #( lt_travel DISCARDING DUPLICATES MAPPING customer_id = CustomerId EXCEPT * ).
+    lt_agency    = CORRESPONDING #( lt_travel DISCARDING DUPLICATES MAPPING agency_id = agencyid EXCEPT * ).
+
+    DELETE lt_customers WHERE customer_id IS INITIAL.
+    DELETE lt_agency WHERE agency_id IS INITIAL.
+
+    "Step 4: Extract the Customer and Agency data from database based on Travel Data
+    IF lt_customers IS NOT INITIAL.
+      SELECT FROM /dmo/customer FIELDS customer_id
+             FOR ALL ENTRIES IN @lt_customers
+              WHERE customer_id = @lt_customers-customer_id
+              INTO TABLE @DATA(lt_cust_db).
+    ENDIF.
+
+    IF lt_agency IS NOT INITIAL.
+      SELECT FROM /dmo/agency FIELDS agency_id
+          FOR ALL ENTRIES IN @lt_agency
+          WHERE agency_id = @lt_agency-agency_id
+          INTO TABLE @DATA(lt_agency_db).
+    ENDIF.
+
+    "STep 5: Loop at incoming data to validate customer and agency one by one
+    LOOP AT lt_travel INTO DATA(ls_travel).
+      "check if customer id is blank OR
+      "If in the DB customer does not exist
+      IF ( ls_travel-CustomerId IS INITIAL OR NOT line_exists( lt_cust_db[ customer_id = ls_travel-CustomerId ]  ) ).
+        APPEND VALUE #( %tky = ls_travel-%tky ) TO failed-travel.
+        APPEND VALUE #( %tky = ls_travel-%tky
+                        %element-customerid = if_abap_behv=>mk-on
+                        %msg = NEW /dmo/cm_flight_messages(
+                                                       textid = /dmo/cm_flight_messages=>customer_unkown
+                                                       customer_id = ls_travel-customerid
+                                                       severity = if_abap_behv_message=>severity-error
+                                                       )
+                       ) TO reported-travel.
+
+      ENDIF.
+
+      "check if Agency id is blank OR
+      "If in the DB Agency does not exist
+      IF ( ls_travel-AgencyId IS INITIAL OR NOT line_exists( lt_agency_db[ agency_id = ls_travel-AgencyId ]  ) ).
+        APPEND VALUE #( %tky = ls_travel-%tky ) TO failed-travel.
+        APPEND VALUE #( %tky = ls_travel-%tky
+                        %element-agencyid = if_abap_behv=>mk-on
+                        %msg = NEW /dmo/cm_flight_messages(
+                                                       textid = /dmo/cm_flight_messages=>agency_unkown
+                                                       customer_id = ls_travel-agencyid
+                                                       severity = if_abap_behv_message=>severity-error
+                                                       )
+                       ) TO reported-travel.
+
+      ENDIF.
+      "Check if the travel start date is >= today's date
+      "Travel end date must be > begin date
+      "Travel begin and end date must not be initial
+    ENDLOOP.
+
   ENDMETHOD.
 
 ENDCLASS.

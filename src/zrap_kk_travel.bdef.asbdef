@@ -35,8 +35,18 @@ early numbering
   //we can later consume this internal action multiple places
   internal action recCalcTotalPrice;
 
+  //Check the header data during save/update - validation
+  validation validateHeaderData on save { create; field CustomerId, BeginDate, EndDate, AgencyId; }
+
   //Determination that calls when user save, modify booking fee
   determination CalcTotalPrice on modify { field BookingFee, CurrencyCode; create; }
+
+  //Sideeffect to make Fiori do a GET call to load updated data
+  //sideeffect need to be exposed in projection layer ZRAP_KK_TRAVEL_PROCESSOR
+  side effects {
+                field BookingFee affects field TotalPrice;
+                entity _Booking affects field TotalPrice;
+               }
 
   //That create of booking depends on Travel, like you cannot create a SO line item w/o creating header
   //Dynamic feature control - features:instance
@@ -87,6 +97,12 @@ early numbering
   //Determination that calls when user save, modify flight price
   determination CalcTotalPriceBook on modify { field FlightPrice, CurrencyCode; create; }
 
+  //Sideeffect to make Fiori do a GET call to load updated data
+  side effects {
+                field FlightPrice affects field _Travel.TotalPrice;
+                entity _BookingSuppl affects field _Travel.TotalPrice;
+               }
+
   mapping for /dmo/booking_m
     {
       TravelId      = travel_id;
@@ -120,6 +136,11 @@ early numbering
 
 //Determination that calls when user save, modify price
   determination CalcTotalPriceSuppl on modify { field Price, CurrencyCode; create; }
+
+//Sideeffect to make Fiori do a GET call to load updated data
+  side effects {
+                field Price affects field _Travel.TotalPrice;
+               }
 
   mapping for /dmo/booksuppl_m
     {

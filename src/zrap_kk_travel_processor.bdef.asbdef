@@ -1,5 +1,6 @@
 projection;
 strict ( 2 );
+use side effects;
 
 define behavior for ZRAP_KK_TRAVEL_PROCESSOR alias Travel
 {
