@@ -1,6 +1,7 @@
 projection;
 strict ( 2 );
 use side effects;
+use draft;
 
 define behavior for ZRAP_KK_TRAVEL_PROCESSOR alias Travel
 {
@@ -8,9 +9,15 @@ define behavior for ZRAP_KK_TRAVEL_PROCESSOR alias Travel
   use update;
   use delete;
 
+  use action activate;
+  use action edit;
+  use action resume;
+  use action prepare;
+  use action discard;
+
   use action copyTravel;
 
-  use association _Booking { create; }
+  use association _Booking { create; with draft;}
 }
 
 define behavior for ZRAP_KK_BOOKING_PROCESSOR alias Booking
@@ -18,8 +25,8 @@ define behavior for ZRAP_KK_BOOKING_PROCESSOR alias Booking
   use update;
   use delete;
 
-  use association _Travel;
-  use association _BookingSuppl { create; }
+  use association _Travel { with draft; }
+  use association _BookingSuppl { create; with draft;}
 }
 
 define behavior for ZRAP_KK_BOOKSUPPL_PROCESSOR alias BookSuppl
@@ -27,6 +34,6 @@ define behavior for ZRAP_KK_BOOKSUPPL_PROCESSOR alias BookSuppl
   use update;
   use delete;
 
-  use association _Travel;
-  use association _Booking;
+  use association _Travel { with draft; }
+  use association _Booking { with draft; }
 }

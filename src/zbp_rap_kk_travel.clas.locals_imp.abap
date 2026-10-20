@@ -94,7 +94,8 @@ CLASS lhc_Travel IMPLEMENTATION.
       travel_id_max += 1.
       entity-TravelId = travel_id_max.
 
-      APPEND VALUE #( %cid = entity-%cid %key = entity-%key ) TO mapped-travel.
+      APPEND VALUE #( %cid = entity-%cid %key = entity-%key
+                      %is_draft = entity-%is_draft ) TO mapped-travel.
     ENDLOOP.
 
   ENDMETHOD.
@@ -311,9 +312,10 @@ CLASS lhc_Travel IMPLEMENTATION.
                         INTO amounts_per_currencycode.
         ENDLOOP.
       ENDLOOP.
+      CLEAR <fs_travel>-totalprice.
     ENDLOOP.
 
-    CLEAR <fs_travel>-totalprice.
+
     "Compare the currency of Booking and Supplement with header currency
     LOOP AT amounts_per_currencycode INTO DATA(ls_amount_per_currency).
       "If it does not match, perform currency conversion
@@ -410,7 +412,7 @@ CLASS lhc_Travel IMPLEMENTATION.
                         %element-agencyid = if_abap_behv=>mk-on
                         %msg = NEW /dmo/cm_flight_messages(
                                                        textid = /dmo/cm_flight_messages=>agency_unkown
-                                                       customer_id = ls_travel-agencyid
+                                                       agency_id = ls_travel-agencyid
                                                        severity = if_abap_behv_message=>severity-error
                                                        )
                        ) TO reported-travel.

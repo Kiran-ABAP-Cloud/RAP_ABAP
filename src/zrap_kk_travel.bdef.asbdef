@@ -4,6 +4,10 @@ managed;
 
 //Tell the RAP engine to syntax check our code strictly
 strict ( 2 );
+
+//S1: Add the draft feature at BO level
+//use with draft and actions in Projection layer ZRAP_KK_TRAVEL_PROCESSOR also
+with draft;
 //Root entity behaviour
 define behavior for ZRAP_KK_TRAVEL alias Travel
 implementation in class zbp_rap_kk_travel unique
@@ -12,6 +16,10 @@ persistent table /dmo/travel_m
 //How the data will be locked ENQUEUE, DEQUEUE - if the travel data is locked by user, other
 //users parallelly cannot edit its bookings and supplements
 lock master
+//S3: Add the total etag field
+total etag lastchangedat
+//S4: Define a draft table, use quick fix to create it
+draft table zrap_kk_dtravel
 //To Control data security - permission - authorization of who can create, edit, delete data
 //ToDO: Developer must implement coding for this line in class
 authorization master ( instance )
@@ -41,6 +49,13 @@ early numbering
   //Determination that calls when user save, modify booking fee
   determination CalcTotalPrice on modify { field BookingFee, CurrencyCode; create; }
 
+  //S2: Statisfy Ego of RAP framework; to put the draft actions
+  draft determine action Prepare;
+  draft action Edit;
+  draft action Resume;
+  draft action Activate;
+  draft action Discard;
+
   //Sideeffect to make Fiori do a GET call to load updated data
   //sideeffect need to be exposed in projection layer ZRAP_KK_TRAVEL_PROCESSOR
   side effects {
@@ -50,7 +65,8 @@ early numbering
 
   //That create of booking depends on Travel, like you cannot create a SO line item w/o creating header
   //Dynamic feature control - features:instance
-  association _Booking { create ( features : instance ); }
+  //S5: Add with draft for child entity
+  association _Booking { create ( features : instance ); with draft;}
   //mapping is required as CDS projection entity and actual DB table fields are different and they
   //won't be created the entry in DB table without this by RAP engine
   mapping for /dmo/travel_m
@@ -76,6 +92,8 @@ early numbering
 define behavior for ZRAP_KK_BOOKING alias Booking
 implementation in class zbp_rap_kk_booking unique
 persistent table /dmo/booking_m
+//S7: Define the draft table for booking data, use quick fix to create booking draft tab
+draft table zrap_kk_dbook
 //if parent data is locked child is also locked automatically
 lock dependent by _Travel
 //lets check the authorization and role @ parent if that pass, we allo booking also to be updated
@@ -90,9 +108,10 @@ early numbering
   //While user is editing the booking data, they cannot change the travel header data
   field ( readonly ) TravelId, BookingId;
   field ( mandatory ) CarrierId, ConnectionId, BookingDate, customerid;
-  association _Travel;
+  association _Travel { with draft; }
   //Supplement creation is possible with booking
-  association _BookingSuppl { create; }
+  //S6: Add with draft for sub child entity
+  association _BookingSuppl { create; with draft; }
 
   //Determination that calls when user save, modify flight price
   determination CalcTotalPriceBook on modify { field FlightPrice, CurrencyCode; create; }
@@ -122,6 +141,8 @@ early numbering
 define behavior for ZRAP_KK_BOOKSUPPL alias BookSuppl
 implementation in class zbp_rap_kk_booksuppl unique
 persistent table /dmo/booksuppl_m
+//S7: Define the draft table for booking supplement data, use quick fix to create booking draft tab
+draft table zrap_kk_dbooks
 lock dependent by _Travel
 authorization dependent by _Travel
 etag master LastChangedAt
@@ -131,8 +152,8 @@ early numbering
   delete;
   field ( readonly ) TravelId, BookingId, BookingSupplementId;
   field ( mandatory ) SupplementId, CurrencyCode, price;
-  association _Travel;
-  association _Booking;
+  association _Travel { with draft; }
+  association _Booking { with draft; }
 
 //Determination that calls when user save, modify price
   determination CalcTotalPriceSuppl on modify { field Price, CurrencyCode; create; }
