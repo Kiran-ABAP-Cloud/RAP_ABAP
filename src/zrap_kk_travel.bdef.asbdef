@@ -7,7 +7,7 @@ strict ( 2 );
 
 //S1: Add the draft feature at BO level
 //use with draft and actions in Projection layer ZRAP_KK_TRAVEL_PROCESSOR also
-with draft;
+with collaborative draft;
 //Root entity behaviour
 define behavior for ZRAP_KK_TRAVEL alias Travel
 implementation in class zbp_rap_kk_travel unique
@@ -19,7 +19,8 @@ lock master
 //S3: Add the total etag field
 total etag lastchangedat
 //S4: Define a draft table, use quick fix to create it
-draft table zrap_kk_dtravel
+//Query table is required for collaborative draft
+draft table zrap_kk_dtravel query zrap_kk_travq
 //To Control data security - permission - authorization of who can create, edit, delete data
 //ToDO: Developer must implement coding for this line in class
 authorization master ( instance )
@@ -29,7 +30,7 @@ etag master LastChangedAt
 early numbering
 {
   //Behaviour what we want RAP to generate for us
-  create;
+  create ( authorization : global ) ;
   update;
   delete;
   //static feature control which says that a user cannot change primary key in update mode
@@ -38,13 +39,20 @@ early numbering
   //since we want to create new BO instance (Facotry), our reference if Mohan's(instance)
   //create the code logic in behaviour implementation, add this action in Travel processor Behaviour definition to expose,
   //and finally add the button 'Copy Request' for TravelId in the Travel Processor MDE file
-  factory action copyTravel[1];
+  factory action copyTravel [1];
   //Here we write internal action to calculate total cost of travel
   //we can later consume this internal action multiple places
   internal action recCalcTotalPrice;
 
   //Check the header data during save/update - validation
   validation validateHeaderData on save { create; field CustomerId, BeginDate, EndDate, AgencyId; }
+
+  //you can invoke it by a button click or using side effect (on fly while draft)
+  //you have to use this action in side effects to trigger during draft
+  determine action validateCustomer
+  {
+    validation validateHeaderData;
+  }
 
   //Determination that calls when user save, modify booking fee
   determination CalcTotalPrice on modify { field BookingFee, CurrencyCode; create; }
@@ -55,18 +63,25 @@ early numbering
   draft action Resume;
   draft action Activate;
   draft action Discard;
+//Required for collaborative draft
+  draft action Share;
 
   //Sideeffect to make Fiori do a GET call to load updated data
   //sideeffect need to be exposed in projection layer ZRAP_KK_TRAVEL_PROCESSOR
-  side effects {
-                field BookingFee affects field TotalPrice;
-                entity _Booking affects field TotalPrice;
-               }
+  side effects
+  {
+    field BookingFee affects field TotalPrice;
+    entity _Booking affects field TotalPrice;
+    //side effect which trigger the validation on fly and this action need to be used
+    // in projection layer ZRAP_KK_TRAVEL_PROCESSOR
+    determine action validateCustomer executed on field CustomerId
+                                      affects messages;
+  }
 
   //That create of booking depends on Travel, like you cannot create a SO line item w/o creating header
   //Dynamic feature control - features:instance
   //S5: Add with draft for child entity
-  association _Booking { create ( features : instance ); with draft;}
+  association _Booking { create ( features : instance ); with draft; }
   //mapping is required as CDS projection entity and actual DB table fields are different and they
   //won't be created the entry in DB table without this by RAP engine
   mapping for /dmo/travel_m
@@ -117,10 +132,11 @@ early numbering
   determination CalcTotalPriceBook on modify { field FlightPrice, CurrencyCode; create; }
 
   //Sideeffect to make Fiori do a GET call to load updated data
-  side effects {
-                field FlightPrice affects field _Travel.TotalPrice;
-                entity _BookingSuppl affects field _Travel.TotalPrice;
-               }
+  side effects
+  {
+    field FlightPrice affects field _Travel.TotalPrice;
+    entity _BookingSuppl affects field _Travel.TotalPrice;
+  }
 
   mapping for /dmo/booking_m
     {
@@ -155,13 +171,14 @@ early numbering
   association _Travel { with draft; }
   association _Booking { with draft; }
 
-//Determination that calls when user save, modify price
+  //Determination that calls when user save, modify price
   determination CalcTotalPriceSuppl on modify { field Price, CurrencyCode; create; }
 
-//Sideeffect to make Fiori do a GET call to load updated data
-  side effects {
-                field Price affects field _Travel.TotalPrice;
-               }
+  //Sideeffect to make Fiori do a GET call to load updated data
+  side effects
+  {
+    field Price affects field _Travel.TotalPrice;
+  }
 
   mapping for /dmo/booksuppl_m
     {

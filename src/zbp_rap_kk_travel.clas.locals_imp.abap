@@ -13,6 +13,8 @@ CLASS lhc_Travel DEFINITION INHERITING FROM cl_abap_behavior_handler.
        keys FOR travel~calctotalprice.
     METHODS validateheaderdata FOR VALIDATE ON SAVE
        keys FOR travel~validateheaderdata.
+    METHODS get_global_authorizations FOR GLOBAL AUTHORIZATION
+      REQUEST requested_authorizations FOR travel RESULT result.
     METHODS earlynumbering_cba_booking FOR NUMBERING
        entities FOR CREATE travel\_booking.
     METHODS earlynumbering_create FOR NUMBERING
@@ -21,6 +23,9 @@ CLASS lhc_Travel DEFINITION INHERITING FROM cl_abap_behavior_handler.
 ENDCLASS.
 
 CLASS lhc_Travel IMPLEMENTATION.
+
+  METHOD get_global_authorizations.
+  ENDMETHOD.
 
   METHOD get_instance_authorizations.
 *Authority Check can be implemented
@@ -424,5 +429,6 @@ CLASS lhc_Travel IMPLEMENTATION.
     ENDLOOP.
 
   ENDMETHOD.
+
 
 ENDCLASS.
