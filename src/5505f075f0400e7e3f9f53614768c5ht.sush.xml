@@ -16,7 +16,22 @@
      <OBJECT>S_START</OBJECT>
      <OKFLAG>X</OKFLAG>
     </USOBX>
+    <USOBX>
+     <NAME>5505F075F0400E7E3F9F53614768C5</NAME>
+     <TYPE>HT</TYPE>
+     <OBJECT>ZRAP_KK</OBJECT>
+     <OKFLAG>Y</OKFLAG>
+    </USOBX>
    </USOBX>
+   <USOBT>
+    <USOBT>
+     <NAME>5505F075F0400E7E3F9F53614768C5</NAME>
+     <TYPE>HT</TYPE>
+     <OBJECT>ZRAP_KK</OBJECT>
+     <FIELD>ACTVT</FIELD>
+     <LOW>02</LOW>
+    </USOBT>
+   </USOBT>
    <USOBX_EXT>
     <item>
      <OBJECT>S_START</OBJECT>
@@ -32,7 +47,28 @@
      <EXCEP_TX>Okay</EXCEP_TX>
      <EXCEP_ICON>@08@</EXCEP_ICON>
     </item>
+    <item>
+     <OBJECT>ZRAP_KK</OBJECT>
+     <TTEXT>ZRAP_KK</TTEXT>
+     <OCLSS>CPAE</OCLSS>
+     <OKFLAG>Y</OKFLAG>
+     <DEVCLASS>ZRAP_ABAP</DEVCLASS>
+     <CI_TEXT>Check/Maintain</CI_TEXT>
+     <CH_TEXT>Check</CH_TEXT>
+     <PR_TEXT>Yes</PR_TEXT>
+     <EXCEP>3</EXCEP>
+     <EXCEP_TX>Okay</EXCEP_TX>
+     <EXCEP_ICON>@08@</EXCEP_ICON>
+    </item>
    </USOBX_EXT>
+   <USOBT_EXT>
+    <item>
+     <OBJECT>ZRAP_KK</OBJECT>
+     <TTEXT>ZRAP_KK</TTEXT>
+     <FIELD>ACTVT</FIELD>
+     <LOW>02</LOW>
+    </item>
+   </USOBT_EXT>
   </asx:values>
  </asx:abap>
 </abapGit>

@@ -28,7 +28,49 @@ CLASS lhc_Travel IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD get_instance_authorizations.
+    "Case study is only allow to update cancelled travel request if it is only a manager otherwise don't allow to modify
 *Authority Check can be implemented
+    "STep 1: Define a return data structure for return table
+    DATA ls_return LIKE LINE OF result.
+
+    "STep 2: Read the instance of the BO, read overallstatus
+    READ ENTITIES OF zrap_kk_travel IN LOCAL MODE
+         ENTITY travel
+         FIELDS ( travelid overallstatus )
+         WITH CORRESPONDING #( keys )
+         RESULT DATA(lt_travel)
+         FAILED DATA(lt_failed).
+
+    "STep 3: check if the status is CANCELLED
+    LOOP AT lt_travel INTO DATA(ls_travel).
+      DATA(lv_auth) = abap_false.
+      IF ( ls_travel-overallstatus = 'X' ).
+        AUTHORITY-CHECK OBJECT 'ZRAP_KK'
+                ID 'ACTVT'         FIELD '02'.
+        IF sy-subrc EQ 0. "Pass user is manager
+          lv_auth = abap_true.
+        ENDIF.
+      ELSE.
+        lv_auth = abap_true.
+      ENDIF.
+
+      ls_return = VALUE #( travelid = ls_travel-travelid
+            "Odata V4 update
+                           %action-edit = COND #(
+                                                WHEN lv_auth EQ abap_false
+                                                    THEN if_abap_behv=>auth-unauthorized
+                                                    ELSE if_abap_behv=>auth-allowed
+                                                )
+
+            "Odata V2 update
+                            %update = COND #(
+                                                WHEN lv_auth EQ abap_false
+                                                    THEN if_abap_behv=>auth-unauthorized
+                                                    ELSE if_abap_behv=>auth-allowed
+                                                )
+                           ).
+      APPEND ls_return TO result.
+    ENDLOOP.
   ENDMETHOD.
 
   METHOD earlynumbering_create.
