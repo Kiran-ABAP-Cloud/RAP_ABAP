@@ -1,5 +1,5 @@
 //mnaged will tell RAP that developer want RAP to create most of code automatically
-managed;
+managed implementation in class zbp_rap_kk_travel unique;
 //In case developer want to plug extra coding, this is the class where we can do it
 
 //Tell the RAP engine to syntax check our code strictly
@@ -28,6 +28,9 @@ authorization master ( instance )
 etag master LastChangedAt
 //We want as a developer to take control of Travel ID
 early numbering
+//Additional save - once RAP completes all of its activities
+//as a developer you can 100% sure that a save was successfully triggered in DB
+with additional save
 {
   //Behaviour what we want RAP to generate for us
   create ( authorization : global ) ;

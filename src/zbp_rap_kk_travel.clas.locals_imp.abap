@@ -1,3 +1,54 @@
+CLASS lsc_zrap_kk_travel DEFINITION INHERITING FROM cl_abap_behavior_saver.
+
+  PROTECTED SECTION.
+
+    METHODS save_modified REDEFINITION.
+
+ENDCLASS.
+
+CLASS lsc_zrap_kk_travel IMPLEMENTATION.
+
+  METHOD save_modified.
+  "Addition save during update of Travel when customer Id or Agency Id got changed
+
+    DATA: lt_log_data   TYPE STANDARD TABLE OF /dmo/log_travel,
+          lt_final_data TYPE STANDARD TABLE OF /dmo/log_travel.
+    IF update-travel IS NOT INITIAL.
+
+      "Get all changes in our local table done by user
+      lt_log_data = CORRESPONDING #( update-travel MAPPING travel_id = TravelId ).
+
+      LOOP AT update-travel ASSIGNING FIELD-SYMBOL(<fs_changes>).
+        ASSIGN lt_log_data[ travel_id = <fs_changes>-TravelId ]
+                TO FIELD-SYMBOL(<travel_log_db>).
+
+        GET TIME STAMP FIELD <travel_log_db>-Created_At.
+
+        IF <fs_changes>-%control-CustomerId = if_abap_behv=>mk-on.
+          <travel_log_db>-change_id = cl_system_uuid=>create_uuid_x16_static( ).
+          <travel_log_db>-changed_field_name = 'kiran_customer'.
+          <travel_log_db>-changed_value = <fs_changes>-CustomerId.
+          <travel_log_db>-changing_operation = 'update'.
+          APPEND <travel_log_db> to lt_final_data.
+        ENDIF.
+
+
+        IF <fs_changes>-%control-AgencyId = if_abap_behv=>mk-on.
+          <travel_log_db>-change_id = cl_system_uuid=>create_uuid_x16_static( ).
+          <travel_log_db>-changed_field_name = 'kiran_agency'.
+          <travel_log_db>-changed_value = <fs_changes>-AgencyId.
+          <travel_log_db>-changing_operation = 'update'.
+          APPEND <travel_log_db> to lt_final_data.
+        ENDIF.
+      ENDLOOP.
+      insert /dmo/log_travel from table @lt_final_data.
+
+    ENDIF.
+
+  ENDMETHOD.
+
+ENDCLASS.
+
 CLASS lhc_Travel DEFINITION INHERITING FROM cl_abap_behavior_handler.
   PRIVATE SECTION.
 
