@@ -9,7 +9,7 @@ ENDCLASS.
 CLASS lsc_zrap_kk_travel IMPLEMENTATION.
 
   METHOD save_modified.
-  "Addition save during update of Travel when customer Id or Agency Id got changed
+    "Addition save during update of Travel when customer Id or Agency Id got changed
 
     DATA: lt_log_data   TYPE STANDARD TABLE OF /dmo/log_travel,
           lt_final_data TYPE STANDARD TABLE OF /dmo/log_travel.
@@ -29,7 +29,7 @@ CLASS lsc_zrap_kk_travel IMPLEMENTATION.
           <travel_log_db>-changed_field_name = 'kiran_customer'.
           <travel_log_db>-changed_value = <fs_changes>-CustomerId.
           <travel_log_db>-changing_operation = 'update'.
-          APPEND <travel_log_db> to lt_final_data.
+          APPEND <travel_log_db> TO lt_final_data.
         ENDIF.
 
 
@@ -38,10 +38,10 @@ CLASS lsc_zrap_kk_travel IMPLEMENTATION.
           <travel_log_db>-changed_field_name = 'kiran_agency'.
           <travel_log_db>-changed_value = <fs_changes>-AgencyId.
           <travel_log_db>-changing_operation = 'update'.
-          APPEND <travel_log_db> to lt_final_data.
+          APPEND <travel_log_db> TO lt_final_data.
         ENDIF.
       ENDLOOP.
-      insert /dmo/log_travel from table @lt_final_data.
+      INSERT /dmo/log_travel FROM TABLE @lt_final_data.
 
     ENDIF.
 
@@ -66,10 +66,31 @@ CLASS lhc_Travel DEFINITION INHERITING FROM cl_abap_behavior_handler.
        keys FOR travel~validateheaderdata.
     METHODS get_global_authorizations FOR GLOBAL AUTHORIZATION
       REQUEST requested_authorizations FOR travel RESULT result.
+    METHODS precheck_create FOR PRECHECK
+       entities FOR CREATE travel.
+
+    METHODS precheck_update FOR PRECHECK
+       entities FOR UPDATE travel.
     METHODS earlynumbering_cba_booking FOR NUMBERING
        entities FOR CREATE travel\_booking.
     METHODS earlynumbering_create FOR NUMBERING
        entities FOR CREATE travel.
+
+    " Declare data types for input and output for my reuse method
+    TYPES: t_entity_create   TYPE TABLE FOR CREATE zrap_kk_travel,
+           t_entity_update   TYPE TABLE FOR UPDATE zrap_kk_travel,
+           t_entity_reported TYPE TABLE FOR REPORTED zrap_kk_travel,
+           t_entity_failed   TYPE TABLE FOR FAILED zrap_kk_travel.
+
+    "reusable method
+    METHODS precheck_kiran_reuse
+      IMPORTING
+        entity_u TYPE t_entity_update OPTIONAL
+        entity_c TYPE t_entity_create OPTIONAL
+      EXPORTING
+        reported TYPE t_entity_reported
+        failed   TYPE t_entity_failed.
+
 
 ENDCLASS.
 
@@ -523,5 +544,101 @@ CLASS lhc_Travel IMPLEMENTATION.
 
   ENDMETHOD.
 
+
+  METHOD precheck_kiran_reuse.
+    "step 1: data declaration
+    DATA: entities  TYPE t_entity_update,
+          operation TYPE if_abap_behv=>t_char01,
+          agencies  TYPE SORTED TABLE OF /dmo/agency WITH UNIQUE KEY agency_id,
+          customers TYPE SORTED TABLE OF /dmo/customer WITH UNIQUE KEY customer_id.
+
+    "Step 2: check atleast either create data or update data was passed
+    ASSERT NOT ( entity_c IS INITIAL EQUIV entity_u IS INITIAL ).
+
+    "Step 3: map the data to a single table
+    IF entity_c IS NOT INITIAL.
+      entities = CORRESPONDING #( entity_c ).
+      operation = if_abap_behv=>op-m-create.
+    ELSE.
+      entities = entity_u.
+      operation = if_abap_behv=>op-m-update.
+    ENDIF.
+
+    "STep 4: Clear the data in case user modified fields other than agency and customer
+    DELETE entities WHERE %control-AgencyId = if_abap_behv=>mk-off
+                    AND %control-CustomerId = if_abap_behv=>mk-off.
+
+    "STep 5: filter only the unique agencies and customers
+    agencies = CORRESPONDING #( entities DISCARDING DUPLICATES MAPPING agency_id = AgencyId EXCEPT * ).
+    customers = CORRESPONDING #(  entities DISCARDING DUPLICATES MAPPING customer_id = CustomerId EXCEPT * ).
+
+    "Step 6: Call DB tables for master data to load valid customers and agencies
+    SELECT FROM /dmo/agency FIELDS agency_id, country_code
+           FOR ALL ENTRIES IN @agencies WHERE agency_id = @agencies-agency_id
+           INTO TABLE @DATA(lt_agency_country).
+
+    SELECT FROM /dmo/customer FIELDS customer_id, country_code
+           FOR ALL ENTRIES IN @customers WHERE customer_id = @customers-customer_id
+           INTO TABLE @DATA(lt_customer_country).
+
+    "STep 7: Loop at all the incoming data for validation and compare the countries of customer and agency
+    LOOP AT entities INTO DATA(entity).
+      READ TABLE lt_agency_country WITH KEY agency_id = entity-AgencyId INTO DATA(ls_agency_val).
+      CHECK sy-subrc EQ 0.
+      READ TABLE lt_customer_country WITH KEY customer_id = entity-CustomerId INTO DATA(ls_customer_val).
+      CHECK sy-subrc EQ 0.
+      "if condition to check if they both belongs to same country, if not throw error
+      IF ls_agency_val-country_code <> ls_customer_val-country_code.
+        "step 8: inform the RAP framework that something is fishy
+        APPEND VALUE #(
+                        %cid = COND #( WHEN operation = if_abap_behv=>op-m-create
+                                            THEN entity-%cid_ref
+                                     )
+                        %is_draft = entity-%is_draft
+                        %fail-cause = if_abap_behv=>cause-conflict
+
+                       ) TO failed.
+        APPEND VALUE #( %cid = COND #( WHEN operation = if_abap_behv=>op-m-create
+                                           THEN entity-%cid_ref
+                                    )
+                       %is_draft = entity-%is_draft
+                       %msg = NEW /dmo/cm_flight_messages(
+                               textid = VALUE #( msgid = 'SY' msgno = 499
+                                                 attr1 = 'The country code for '
+                                                 attr2 = |{ entity-agencyid } and |
+                                                 attr3 = entity-customerid
+                                                 attr4 = 'does not match' )
+                                agency_id = entity-AgencyId
+                                customer_id = entity-CustomerId
+                                severity = if_abap_behv_message=>severity-error
+                                )
+                        %element-agencyid = if_abap_behv=>mk-on
+                       ) TO reported.
+      ENDIF.
+    ENDLOOP.
+
+  ENDMETHOD.
+
+  METHOD precheck_create.
+    precheck_kiran_reuse(
+      EXPORTING
+*        entity_u =
+        entity_c = entities
+      IMPORTING
+        reported = reported-travel
+        failed   = failed-travel
+    ).
+  ENDMETHOD.
+
+  METHOD precheck_update.
+    precheck_kiran_reuse(
+       EXPORTING
+         entity_u = entities
+*        entity_c =
+       IMPORTING
+         reported = reported-travel
+         failed   = failed-travel
+     ).
+  ENDMETHOD.
 
 ENDCLASS.

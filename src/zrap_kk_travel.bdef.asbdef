@@ -33,8 +33,8 @@ early numbering
 with additional save
 {
   //Behaviour what we want RAP to generate for us
-  create ( authorization : global ) ;
-  update;
+  create ( authorization : global, precheck ) ;
+  update (precheck);
   delete;
   //static feature control which says that a user cannot change primary key in update mode
   field ( readonly ) TravelId;
