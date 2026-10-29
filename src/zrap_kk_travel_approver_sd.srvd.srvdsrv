@@ -1,0 +1,9 @@
+@EndUserText.label: 'Service Definition for Travel Processor Scenario'
+define service ZRAP_KK_TRAVEL_APPROVER_SD {
+  expose ZRAP_KK_TRAVEL_APPROVER  as Travel;
+  expose ZRAP_KK_BOOKING_APPROVER as Booking;
+  expose /DMO/I_Agency            as Agency;
+  expose /DMO/I_Customer          as Customer;
+  expose I_Currency               as Currency;
+  expose /DMO/I_Travel_Status_VH  as TravelStatus;
+}

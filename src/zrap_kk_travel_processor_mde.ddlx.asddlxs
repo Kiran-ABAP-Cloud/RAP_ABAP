@@ -105,6 +105,12 @@ annotate entity ZRAP_KK_TRAVEL_PROCESSOR with
   @UI.dataPoint: { qualifier: 'bumbblebee', title: 'Travel Status', criticality: 'Minion' }
   @UI.fieldGroup: [{ position: 30, qualifier: 'spiderman' }]
   OverallStatus;
+  @UI.lineItem: [{ position: 70,importance: #HIGH }]
+  @UI.fieldGroup: [{ position: 60, qualifier: 'spiderman' }]
+  dayOfFlight;
+  @UI.fieldGroup: [{ position: 70, qualifier: 'spiderman' }]
+  @UI.lineItem: [{ position: 80,importance: #HIGH }]
+  CO2Tax;
   //    CreatedBy;
   //    CreatedAt;
   //    LastChangedBy;

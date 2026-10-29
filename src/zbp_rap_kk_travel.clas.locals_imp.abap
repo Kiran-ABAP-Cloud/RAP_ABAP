@@ -71,6 +71,11 @@ CLASS lhc_Travel DEFINITION INHERITING FROM cl_abap_behavior_handler.
 
     METHODS precheck_update FOR PRECHECK
        entities FOR UPDATE travel.
+    METHODS accepttravel FOR MODIFY
+       keys FOR ACTION travel~accepttravel RESULT result.
+
+    METHODS rejecttravel FOR MODIFY
+       keys FOR ACTION travel~rejecttravel RESULT result.
     METHODS earlynumbering_cba_booking FOR NUMBERING
        entities FOR CREATE travel\_booking.
     METHODS earlynumbering_create FOR NUMBERING
@@ -285,7 +290,17 @@ CLASS lhc_Travel IMPLEMENTATION.
 
 
     result = VALUE #( FOR travel IN lt_travel ( %tky = travel-%tky
-                                                %assoc-_Booking = lv_allow ) ).
+                                                %assoc-_Booking = lv_allow
+                                                %features-%action-acceptTravel =
+                                                cond #( when travel-OverallStatus = 'A'
+                                                            then if_abap_behv=>fc-o-disabled
+                                                            else if_abap_behv=>fc-o-enabled )
+
+                                                %features-%action-rejectTravel =
+                                                 cond #( when travel-OverallStatus = 'X'
+                                                            then if_abap_behv=>fc-o-disabled
+                                                            else if_abap_behv=>fc-o-enabled )
+                                                ) ).
 
 
   ENDMETHOD.
@@ -639,6 +654,51 @@ CLASS lhc_Travel IMPLEMENTATION.
          reported = reported-travel
          failed   = failed-travel
      ).
+  ENDMETHOD.
+
+  METHOD acceptTravel.
+    "Enable and disable of accept and rejecttravel buttons functionality is written in
+    "GET_INSTANCE_FEATURES method in the RESULT data population
+    "Change the travel status to approved using EML
+    MODIFY ENTITIES OF zrap_kk_travel
+        ENTITY travel
+        UPDATE FIELDS ( overallstatus )
+        WITH VALUE #( FOR key IN keys ( %tky = key-%tky
+                                       %is_draft = key-%is_draft
+                                       OverallStatus = 'A' ) ).
+
+    "Read the data of BO instance again
+    READ ENTITIES OF zrap_kk_travel
+       ENTITY travel
+       ALL FIELDS
+       WITH CORRESPONDING #( keys )
+       RESULT DATA(lt_result).
+
+    "Return the data out
+    result = VALUE #( FOR travel IN lt_result ( %tky = travel-%tky %param = travel ) ).
+  ENDMETHOD.
+
+  METHOD rejectTravel.
+   "Enable and disable of accept and rejecttravel buttons functionality is written in
+    "GET_INSTANCE_FEATURES method in the RESULT data population
+    "Change the travel status to approved using EML
+    MODIFY ENTITIES OF zrap_kk_travel
+        ENTITY travel
+        UPDATE FIELDS ( overallstatus )
+        WITH VALUE #( FOR key IN keys ( %tky = key-%tky
+                                       %is_draft = key-%is_draft
+                                       OverallStatus = 'X' ) ).
+
+    "Read the data of BO instance again
+    READ ENTITIES OF zrap_kk_travel
+       ENTITY travel
+       ALL FIELDS
+       WITH CORRESPONDING #( keys )
+       RESULT DATA(lt_result).
+
+    "Return the data out
+    result = VALUE #( FOR travel IN lt_result ( %tky = travel-%tky %param = travel ) ).
+
   ENDMETHOD.
 
 ENDCLASS.

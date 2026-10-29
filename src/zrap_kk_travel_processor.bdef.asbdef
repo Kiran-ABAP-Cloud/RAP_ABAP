@@ -4,9 +4,11 @@ use side effects;
 use collaborative draft;
 
 define behavior for ZRAP_KK_TRAVEL_PROCESSOR alias Travel
+//now we have another behaviour imp cladd in behaviour pool
+implementation in class zcl_rap_kk_trav_proc unique
 {
-  use create;
-  use update;
+  use create (precheck,augment);
+  use update (precheck);
   use delete;
 
   use action activate;

@@ -43,6 +43,11 @@ with additional save
   //create the code logic in behaviour implementation, add this action in Travel processor Behaviour definition to expose,
   //and finally add the button 'Copy Request' for TravelId in the Travel Processor MDE file
   factory action copyTravel [1];
+
+  //non factory data action - change the state of the instance of a BO
+  action ( features:instance ) acceptTravel result[1] $self;
+  action ( features:instance ) rejectTravel result[1] $self;
+
   //Here we write internal action to calculate total cost of travel
   //we can later consume this internal action multiple places
   internal action recCalcTotalPrice;
